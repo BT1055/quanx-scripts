@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>QuanX 万能解析器</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #0f0f14;
+    color: #e4e4e7;
+    padding: 16px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+  h1 {
+    font-size: 22px;
+    margin-bottom: 6px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle { color: #71717a; font-size: 13px; margin-bottom: 20px; }
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    background: #1a1a24;
+    border: 1px solid #27272a;
+    border-radius: 10px;
+    cursor: pointer;
+    text-align: center;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  .tab.active {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-color: transparent;
+    color: white;
+  }
+  .card {
+    background: #1a1a24;
+    border: 1px solid #27272a;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #a1a1aa;
+  }
+  textarea {
+    width: 100%;
+    min-height: 140px;
+    background: #0f0f14;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    padding: 12px;
+    color: #e4e4e7;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 13px;
+    resize: vertical;
+    line-height: 1.5;
+  }
+  textarea:focus { outline: none; border-color: #667eea; }
+  .btn-group { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+  button {
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+  }
+  .btn-primary:active { transform: scale(0.97); }
+  .btn-secondary {
+    background: #27272a;
+    color: #e4e4e7;
+  }
+  .btn-secondary:active { transform: scale(0.97); }
+  .output-box {
+    background: #0f0f14;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    padding: 12px;
+    font-family: "SF Mono", Menlo, monospace;
+    font-size: 12px;
+    line-height: 1.6;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 400px;
+    overflow-y: auto;
+  }
+  .stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 12px;
+    font-size: 13px;
+  }
+  .stat-item { color: #71717a; }
+  .stat-item span { color: #667eea; font-weight: 600; }
+  .toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #10b981;
+    color: white;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s;
+    z-index: 1000;
+  }
+  .toast.show { opacity: 1; }
+  .hidden { display: none; }
+  .format-select {
+    background: #0f0f14;
+    border: 1px solid #27272a;
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: #e4e4e7;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<h1>QuanX 万能解析器</h1>
+<p class="subtitle">代理节点 & 规则一键转换为 Quantumult X 格式</p>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('proxy')">代理节点解析</div>
+  <div class="tab" onclick="switchTab('rule')">规则解析</div>
+</div>
+
+<!-- 代理节点解析 -->
+<div id="tab-proxy">
+  <div class="card">
+    <div class="card-title">📥 输入节点链接（支持批量，每行一个，也支持 base64 订阅内容）</div>
+    <textarea id="proxy-input" placeholder="ss://...&#10;vmess://...&#10;trojan://...&#10;vless://...&#10;http://...&#10;socks5://..."></textarea>
+    <div class="btn-group">
+      <select id="proxy-format" class="format-select">
+        <option value="qx">Quantumult X 格式</option>
+        <option value="json">JSON 格式</option>
+      </select>
+      <button class="btn-primary" onclick="parseProxy()">🔍 解析节点</button>
+      <button class="btn-secondary" onclick="clearInput('proxy-input')">清空</button>
+      <button class="btn-secondary" onclick="loadSample()">示例</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stats">
+      <div class="stat-item">解析成功: <span id="success-count">0</span></div>
+      <div class="stat-item">解析失败: <span id="fail-count">0</span></div>
+    </div>
+    <div class="card-title">📤 输出结果</div>
+    <div class="output-box" id="proxy-output">等待输入...</div>
+    <div class="btn-group">
+      <button class="btn-primary" onclick="copyOutput('proxy-output')">📋 复制结果</button>
+      <button class="btn-secondary" onclick="downloadOutput('proxy-output', 'quanx-nodes.txt')">💾 下载</button>
+    </div>
+  </div>
+</div>
+
+<!-- 规则解析 -->
+<div id="tab-rule" class="hidden">
+  <div class="card">
+    <div class="card-title">📥 输入规则（支持 Surge / Clash 格式转换为 Quantumult X）</div>
+    <textarea id="rule-input" placeholder="DOMAIN-SUFFIX,google.com,PROXY&#10;IP-CIDR,1.1.1.1/32,DIRECT&#10;GEOIP,CN,DIRECT"></textarea>
+    <div class="btn-group">
+      <button class="btn-primary" onclick="parseRule()">🔍 解析规则</button>
+      <button class="btn-secondary" onclick="clearInput('rule-input')">清空</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stats">
+      <div class="stat-item">转换成功: <span id="rule-success-count">0</span></div>
+      <div class="stat-item">跳过: <span id="rule-skip-count">0</span></div>
+    </div>
+    <div class="card-title">📤 输出结果（可直接粘贴到 [filter_local]）</div>
+    <div class="output-box" id="rule-output">等待输入...</div>
+    <div class="btn-group">
+      <button class="btn-primary" onclick="copyOutput('rule-output')">📋 复制结果</button>
+      <button class="btn-secondary" onclick="downloadOutput('rule-output', 'quanx-rules.txt')">💾 下载</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">已复制到剪贴板</div>
+
+<script>
+// ============================================================
+//  通用工具
+// ============================================================
+function b64decode(data) {
+  data = data.trim().replace(/-/g, '+').replace(/_/g, '/');
+  while (data.length % 4) data += '=';
+  try { return decodeURIComponent(escape(atob(data))); } catch(e) { return atob(data); }
+}
+
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((el, i) => {
+    el.classList.toggle('active', (i === 0 && tab === 'proxy') || (i === 1 && tab === 'rule'));
+  });
+  document.getElementById('tab-proxy').classList.toggle('hidden', tab !== 'proxy');
+  document.getElementById('tab-rule').classList.toggle('hidden', tab !== 'rule');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+function clearInput(id) {
+  document.getElementById(id).value = '';
+}
+
+function copyOutput(id) {
+  const text = document.getElementById(id).textContent;
+  if (!text || text === '等待输入...') { showToast('没有内容可复制'); return; }
+  navigator.clipboard.writeText(text).then(() => showToast('已复制到剪贴板'));
+}
+
+function downloadOutput(id, filename) {
+  const text = document.getElementById(id).textContent;
+  if (!text || text === '等待输入...') return;
+  const blob = new Blob([text], {type: 'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+// ============================================================
+//  代理节点解析器
+// ============================================================
+function parseSS(url) {
+  let content = url.slice(5);
+  let tag = '';
+  if (content.includes('#')) {
+    [content, tag] = content.split('#');
+    tag = decodeURIComponent(tag);
+  }
+  try {
+    if (content.includes('@')) {
+      const [userinfo, hostinfo] = content.rsplit('@', 1);
+      const decoded = b64decode(userinfo);
+      const [method, password] = decoded.split(':');
+      const [hostport, query] = hostinfo.includes('/?') ? hostinfo.split('/?') : hostinfo.includes('?') ? hostinfo.split('?') : [hostinfo, ''];
+      const [host, port] = hostport.rsplit(':', 1);
+      return { type: 'ss', tag: tag || `${host}:${port}`, host, port: parseInt(port), method, password };
+    } else {
+      const decoded = b64decode(content);
+      const [mp, hp] = decoded.rsplit('@', 1);
+      const [method, password] = mp.split(':');
+      const [host, port] = hp.rsplit(':', 1);
+      return { type: 'ss', tag: tag || `${host}:${port}`, host, port: parseInt(port), method, password };
+    }
+  } catch(e) { return null; }
+}
+
+function parseVMess(url) {
+  try {
+    const data = JSON.parse(b64decode(url.slice(8)));
+    return {
+      type: 'vmess',
+      tag: data.ps || `${data.add}:${data.port}`,
+      host: data.add,
+      port: parseInt(data.port),
+      uuid: data.id,
+      alter_id: parseInt(data.aid || 0),
+      network: data.net || 'tcp',
+      ws_host: data.host || '',
+      path: data.path || '',
+      tls: data.tls || '',
+      sni: data.sni || '',
+    };
+  } catch(e) { return null; }
+}
+
+function parseTrojan(url) {
+  try {
+    let content = url.slice(9);
+    let tag = '';
+    if (content.includes('#')) { [content, tag] = content.split('#'); tag = decodeURIComponent(tag); }
+    const [userhost, query] = content.includes('?') ? content.split('?') : [content, ''];
+    const [password, hostport] = userhost.rsplit('@', 1);
+    const [host, port] = hostport.rsplit(':', 1);
+    const params = new URLSearchParams(query);
+    return {
+      type: 'trojan', tag: tag || `${host}:${port}`, host, port: parseInt(port),
+      password: decodeURIComponent(password),
+      network: params.get('type') || 'tcp',
+      sni: params.get('sni') || '',
+      tls: params.get('security') || 'tls',
+    };
+  } catch(e) { return null; }
+}
+
+function parseVLESS(url) {
+  try {
+    let content = url.slice(8);
+    let tag = '';
+    if (content.includes('#')) { [content, tag] = content.split('#'); tag = decodeURIComponent(tag); }
+    const [userhost, query] = content.includes('?') ? content.split('?') : [content, ''];
+    const [uuid, hostport] = userhost.rsplit('@', 1);
+    const [host, port] = hostport.rsplit(':', 1);
+    const params = new URLSearchParams(query);
+    return {
+      type: 'vless', tag: tag || `${host}:${port}`, host, port: parseInt(port), uuid,
+      network: params.get('type') || 'tcp',
+      security: params.get('security') || '',
+      sni: params.get('sni') || '',
+      flow: params.get('flow') || '',
+      pbk: params.get('pbk') || '',
+      sid: params.get('sid') || '',
+    };
+  } catch(e) { return null; }
+}
+
+function parseHTTP(url) {
+  try {
+    const u = new URL(url);
+    return {
+      type: u.protocol.replace(':', ''),
+      tag: u.hash.slice(1) ? decodeURIComponent(u.hash.slice(1)) : `${u.hostname}:${u.port}`,
+      host: u.hostname, port: parseInt(u.port) || (u.protocol === 'https:' ? 443 : 80),
+      username: u.username || '', password: u.password || '',
+    };
+  } catch(e) { return null; }
+}
+
+function parseSingle(url) {
+  url = url.trim();
+  if (!url) return null;
+  if (url.startsWith('ss://')) return parseSS(url);
+  if (url.startsWith('vmess://')) return parseVMess(url);
+  if (url.startsWith('trojan://')) return parseTrojan(url);
+  if (url.startsWith('vless://')) return parseVLESS(url);
+  if (url.startsWith('http://') || url.startsWith('https://')) return parseHTTP(url);
+  if (url.startsWith('socks5://')) {
+    const u = new URL(url);
+    return { type: 'socks5', tag: u.hash ? decodeURIComponent(u.hash.slice(1)) : `${u.hostname}:${u.port}`, host: u.hostname, port: parseInt(u.port) || 1080, username: u.username || '', password: u.password || '' };
+  }
+  return null;
+}
+
+function toQuantumultX(n) {
+  const tag = n.tag;
+  if (n.type === 'ss') return `shadowsocks=${n.host}:${n.port},method=${n.method},password=${n.password},tag=${tag}`;
+  if (n.type === 'vmess') {
+    const p = [`vmess=${n.host}:${n.port}`, 'method=none', `password=${n.uuid}`];
+    if (n.network === 'ws' && n.tls === 'tls') {
+      p.push('obfs=wss');
+      if (n.ws_host) p.push(`obfs-host=${n.ws_host}`);
+      if (n.path) p.push(`obfs-uri=${n.path}`);
+      p.push('tls-verification=true');
+    } else if (n.network === 'ws') {
+      p.push('obfs=ws');
+      if (n.ws_host) p.push(`obfs-host=${n.ws_host}`);
+      if (n.path) p.push(`obfs-uri=${n.path}`);
+    } else if (n.tls === 'tls') {
+      p.push('obfs=over-tls');
+      if (n.sni) p.push(`tls-host=${n.sni}`);
+      p.push('tls-verification=true');
+    }
+    p.push(`tag=${tag}`);
+    return p.join(',');
+  }
+  if (n.type === 'trojan') {
+    const p = [`trojan=${n.host}:${n.port}`, `password=${n.password}`, 'over-tls=true'];
+    if (n.sni) p.push(`tls-host=${n.sni}`);
+    p.push('tls-verification=true', `tag=${tag}`);
+    return p.join(',');
+  }
+  if (n.type === 'vless') {
+    const p = [`vless=${n.host}:${n.port}`, 'method=none', `password=${n.uuid}`];
+    if (n.security === 'reality') {
+      p.push('obfs=over-tls');
+      if (n.sni) p.push(`obfs-host=${n.sni}`);
+      if (n.pbk) p.push(`reality-base64-pubkey=${n.pbk}`);
+      if (n.sid) p.push(`reality-hex-shortid=${n.sid}`);
+    } else if (n.security === 'tls') {
+      p.push('obfs=over-tls');
+      if (n.sni) p.push(`obfs-host=${n.sni}`);
+      p.push('tls-verification=true');
+    }
+    if (n.flow) p.push(`vless-flow=${n.flow}`);
+    p.push(`tag=${tag}`);
+    return p.join(',');
+  }
+  if (n.type === 'http' || n.type === 'https') {
+    const p = [`${n.type}=${n.host}:${n.port}`];
+    if (n.username) p.push(`username=${n.username}`);
+    if (n.password) p.push(`password=${n.password}`);
+    if (n.type === 'https') { p.push('over-tls=true', 'tls-verification=true'); }
+    p.push(`tag=${tag}`);
+    return p.join(',');
+  }
+  if (n.type === 'socks5') {
+    const p = [`socks5=${n.host}:${n.port}`];
+    if (n.username) p.push(`username=${n.username}`);
+    if (n.password) p.push(`password=${n.password}`);
+    p.push(`tag=${tag}`);
+    return p.join(',');
+  }
+  return `# 不支持的类型: ${n.type}`;
+}
+
+function parseProxy() {
+  const input = document.getElementById('proxy-input').value.trim();
+  if (!input) { showToast('请输入节点链接'); return; }
+  const format = document.getElementById('proxy-format').value;
+  let lines = input.split('\n');
+  // 检测是否是 base64 订阅
+  if (lines.length === 1 && !lines[0].match(/^(ss|ssr|vmess|trojan|vless|http|socks5):\/\//)) {
+    try { lines = b64decode(lines[0]).split('\n'); } catch(e) {}
+  }
+  let success = 0, fail = 0;
+  const results = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith(';')) continue;
+    const node = parseSingle(trimmed);
+    if (node) {
+      success++;
+      results.push(format === 'qx' ? toQuantumultX(node) : JSON.stringify(node, null, 2));
+    } else {
+      fail++;
+    }
+  }
+  document.getElementById('success-count').textContent = success;
+  document.getElementById('fail-count').textContent = fail;
+  document.getElementById('proxy-output').textContent = results.join('\n') || '没有解析到有效节点';
+}
+
+function loadSample() {
+  document.getElementById('proxy-input').value = 
+    'ss://YWVzLTI1Ni1nY206cGFzc3dvcmQxMjM=@example.com:8388#测试SS节点\n' +
+    'vmess://eyJhZGQiOiJleGFtcGxlLmNvbSIsImFpZCI6IjAiLCJob3N0IjoiIiwiaWQiOiJhYmNkZWYxMi0zNDU2LTc4OTAtYWJjZC1lZjEyMzQ1Njc4OTAiLCJuZXQiOiJ3cyIsInBhdGgiOiIvd3MiLCJwb3J0IjoiNDQzIiwicHMiOiLmtYvor5VWTWVzcyIsInRscyI6InRscyIsInR5cGUiOiJub25lIiwidiI6IjIifQ==\n' +
+    'trojan://password123@trojan.example.com:443?sni=trojan.example.com#测试Trojan\n' +
+    'vless://a1b2c3d4-e5f6-7890-abcd-ef1234567890@vless.example.com:443?type=tcp&security=reality&pbk=testkey&sid=0123456789abcdef&sni=example.com#测试VLESS\n' +
+    'http://user:pass@proxy.example.com:8080#HTTP代理\n' +
+    'socks5://user:pass@socks.example.com:1080#SOCKS5代理';
+}
+
+// ============================================================
+//  规则解析器（Surge/Clash -> Quantumult X）
+// ============================================================
+function parseRule() {
+  const input = document.getElementById('rule-input').value.trim();
+  if (!input) { showToast('请输入规则'); return; }
+  const lines = input.split('\n');
+  let success = 0, skip = 0;
+  const results = [];
+  // Surge/Clash 规则类型 -> Quantumult X 映射
+  const typeMap = {
+    'DOMAIN': 'host',
+    'DOMAIN-SUFFIX': 'host-suffix',
+    'DOMAIN-KEYWORD': 'host-keyword',
+    'DOMAIN-WILDCARD': 'host-wildcard',
+    'IP-CIDR': 'ip-cidr',
+    'IP-CIDR6': 'ip6-cidr',
+    'GEOIP': 'geoip',
+    'USER-AGENT': 'user-agent',
+    'FINAL': 'final',
+  };
+  // 策略映射
+  const policyMap = {
+    'PROXY': 'proxy', 'DIRECT': 'direct', 'REJECT': 'reject',
+    'no-resolve': '',
+  };
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith(';')) continue;
+    const parts = trimmed.split(',').map(p => p.trim());
+    if (parts.length < 2) { skip++; continue; }
+    const surgeType = parts[0].toUpperCase();
+    const qxType = typeMap[surgeType];
+    if (!qxType) { skip++; continue; }
+    let value = parts[1];
+    let policy = parts[2] || 'direct';
+    policy = policyMap[policy.toUpperCase()] || policy;
+    if (qxType === 'final') {
+      results.push(`final, ${policy}`);
+    } else {
+      results.push(`${qxType}, ${value}, ${policy}`);
+    }
+    success++;
+  }
+  document.getElementById('rule-success-count').textContent = success;
+  document.getElementById('rule-skip-count').textContent = skip;
+  document.getElementById('rule-output').textContent = results.join('\n') || '没有转换任何规则';
+}
+
+// 给 String 添加 rsplit 方法
+if (!String.prototype.rsplit) {
+  String.prototype.rsplit = function(sep, maxsplit) {
+    const split = this.split(sep);
+    return maxsplit ? [split.slice(0, -maxsplit).join(sep)].concat(split.slice(-maxsplit)) : split;
+  };
+}
+</script>
+</body>
+</html>
