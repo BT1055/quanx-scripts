@@ -1,0 +1,89 @@
+# ============================================================
+#  QuanX 个人脚本套件 - 分流规则
+#  使用方法：在 Quantumult X「分流」中添加本规则集
+#  说明：这里的 REJECT 是在网络层直接拒绝，与脚本中的拦截互补
+# ============================================================
+
+# ---------- 广告/统计域名：直接拒绝 ----------
+# 这些域名即使不走脚本也会被网络层拒绝
+DOMAIN-SUFFIX,doubleclick.net,REJECT
+DOMAIN-SUFFIX,googlesyndication.com,REJECT
+DOMAIN-SUFFIX,googleadservices.com,REJECT
+DOMAIN-SUFFIX,admob.com,REJECT
+DOMAIN-SUFFIX,adsrvr.org,REJECT
+DOMAIN-SUFFIX,adnxs.com,REJECT
+DOMAIN-SUFFIX,moatads.com,REJECT
+DOMAIN-SUFFIX,umeng.com,REJECT
+DOMAIN-SUFFIX,umengcloud.com,REJECT
+DOMAIN-SUFFIX,tanx.com,REJECT
+DOMAIN-SUFFIX,mmstat.com,REJECT
+DOMAIN-SUFFIX,gdtimg.com,REJECT
+DOMAIN-SUFFIX,google-analytics.com,REJECT
+DOMAIN-SUFFIX,analytics.google.com,REJECT
+DOMAIN-SUFFIX,googletagmanager.com,REJECT
+DOMAIN-SUFFIX,hotjar.com,REJECT
+DOMAIN-SUFFIX,mixpanel.com,REJECT
+DOMAIN-SUFFIX,amplitude.com,REJECT
+DOMAIN-SUFFIX,segment.io,REJECT
+DOMAIN-SUFFIX,segment.com,REJECT
+DOMAIN-SUFFIX,heap.io,REJECT
+DOMAIN-SUFFIX,fullstory.com,REJECT
+DOMAIN-SUFFIX,mouseflow.com,REJECT
+DOMAIN-SUFFIX,crazyegg.com,REJECT
+DOMAIN-SUFFIX,talkingdata.com,REJECT
+DOMAIN-SUFFIX,bugly.qq.com,REJECT
+
+# ---------- 局域网/本地：直连 ----------
+IP-CIDR,10.0.0.0/8,DIRECT
+IP-CIDR,172.16.0.0/12,DIRECT
+IP-CIDR,192.168.0.0/16,DIRECT
+IP-CIDR,127.0.0.0/8,DIRECT
+IP-CIDR,100.64.0.0/10,DIRECT
+IP-CIDR,169.254.0.0/16,DIRECT
+IP-CIDR,224.0.0.0/4,DIRECT
+IP-CIDR,240.0.0.0/4,DIRECT
+DOMAIN,localhost,DIRECT
+
+# ---------- 国内常用域名：直连（按需添加） ----------
+DOMAIN-SUFFIX,cn,DIRECT
+DOMAIN-SUFFIX,baidu.com,DIRECT
+DOMAIN-SUFFIX,qq.com,DIRECT
+DOMAIN-SUFFIX,tencent.com,DIRECT
+DOMAIN-SUFFIX,alibaba.com,DIRECT
+DOMAIN-SUFFIX,alipay.com,DIRECT
+DOMAIN-SUFFIX,taobao.com,DIRECT
+DOMAIN-SUFFIX,tmall.com,DIRECT
+DOMAIN-SUFFIX,jd.com,DIRECT
+DOMAIN-SUFFIX,bilibili.com,DIRECT
+DOMAIN-SUFFIX,weibo.com,DIRECT
+DOMAIN-SUFFIX,zhihu.com,DIRECT
+DOMAIN-SUFFIX,163.com,DIRECT
+DOMAIN-SUFFIX,netease.com,DIRECT
+DOMAIN-SUFFIX,meituan.com,DIRECT
+DOMAIN-SUFFIX,dianping.com,DIRECT
+DOMAIN-SUFFIX,ctrip.com,DIRECT
+DOMAIN-SUFFIX,58.com,DIRECT
+DOMAIN-SUFFIX,sina.com,DIRECT
+DOMAIN-SUFFIX,sohu.com,DIRECT
+DOMAIN-SUFFIX,youku.com,DIRECT
+DOMAIN-SUFFIX,iqiyi.com,DIRECT
+DOMAIN-SUFFIX,xunlei.com,DIRECT
+DOMAIN-SUFFIX,360.cn,DIRECT
+DOMAIN-SUFFIX,sogou.com,DIRECT
+DOMAIN-SUFFIX,haosou.com,DIRECT
+
+# ---------- 苹果服务：直连（避免影响推送等） ----------
+DOMAIN-SUFFIX,apple.com,DIRECT
+DOMAIN-SUFFIX,icloud.com,DIRECT
+DOMAIN-SUFFIX,apple-cloudkit.com,DIRECT
+DOMAIN-SUFFIX,appsto.re,DIRECT
+DOMAIN-SUFFIX,itunes.com,DIRECT
+DOMAIN-SUFFIX,mzstatic.com,DIRECT
+DOMAIN-SUFFIX,cdn-apple.com,DIRECT
+
+# ---------- 国内 IP 段：直连 ----------
+GEOIP,CN,DIRECT
+
+# ---------- 默认规则 ----------
+# 国外流量走代理
+FINAL,PROXY
