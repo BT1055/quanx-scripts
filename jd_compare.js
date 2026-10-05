@@ -38,12 +38,13 @@ if (skuId && hasPriceKW) {
 }
 
 // === 否则：弹诊断通知（始终弹，确保规则可见）===
-// 把所有字段拼成一行，方便长按复制
-var line = 'URL功能=' + urlFid
-         + ' | skuId=' + (skuId || '无')
-         + ' | 路径=' + path
-         + ' | 含价格=' + (hasPriceKW ? '是' : '否');
-$notify('京东探针' + (hasPriceKW ? ' ★含价' : ''), line, '');
+// 接口名直接放通知标题，方便用户看 / 截图
+// 副标题显示 skuId 和含价格标记，正文显示完整字段拼成的单行
+$notify(
+  '🔍' + urlFid,
+  'skuId=' + (skuId || '无') + (hasPriceKW ? ' | ★含价' : ''),
+  'URL功能=' + urlFid + ' | skuId=' + (skuId || '无') + ' | 路径=' + path + ' | 含价格=' + (hasPriceKW ? '是' : '否')
+);
 
 $done({});
 
