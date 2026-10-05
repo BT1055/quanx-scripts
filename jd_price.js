@@ -75,7 +75,11 @@ if (url.includes(path1) || /item(?:\.m)?\.jd\.com\/\d+\.html/.test(url) || url.i
     const skuId = extractSkuId(url, $request?.body || '', responseBody || '');
     if (!skuId) {
         // 无 skuId：直接尝试从响应中提取价格字段（当前价/原价/直降）
-        const priceInfo = extractPriceDirect(responseBody || '');
+        let priceInfo = extractPriceDirect(responseBody || '');
+        if (!priceInfo) {
+            // 兜底：正则宽松提取任何价格数字
+            priceInfo = extractPriceRegex(responseBody || '');
+        }
         if (priceInfo && priceInfo.current) {
             $.msg('京东价格', '实时价格', priceInfo.text);
         }
@@ -92,6 +96,31 @@ if (url.includes(path1) || /item(?:\.m)?\.jd\.com\/\d+\.html/.test(url) || url.i
                 });
             }
         )
+}
+
+// 正则兜底：不依赖 JSON 结构，直接抓取响应中的价格字段和数值
+function extractPriceRegex(body) {
+    if (!body) return null;
+    const grab = (re) => {
+        const m = body.match(re);
+        return m ? m[1] : '';
+    };
+    // 常见京东价格字段：p / price / lowPrice / currentPrice / op / originalPrice
+    const cur = grab(/"p"\s*:\s*"?(\d+(?:\.\d+)?)"?/)
+        || grab(/"price"\s*:\s*"?(\d+(?:\.\d+)?)"?/)
+        || grab(/"lowPrice"\s*:\s*"?(\d+(?:\.\d+)?)"?/)
+        || grab(/"currentPrice"\s*:\s*"?(\d+(?:\.\d+)?)"?/);
+    if (!cur) return null;
+    const org = grab(/"op"\s*:\s*"?(\d+(?:\.\d+)?)"?/)
+        || grab(/"originalPrice"\s*:\s*"?(\d+(?:\.\d+)?)"?/)
+        || grab(/"marketPrice"\s*:\s*"?(\d+(?:\.\d+)?)"?/);
+    let text = '当前价：¥' + cur;
+    if (org && org !== cur) {
+        text += '\n原价：¥' + org;
+        const d = Number(org) - Number(cur);
+        if (d > 0) text += '\n直降：¥' + d.toFixed(2);
+    }
+    return { current: cur, original: org, text };
 }
 
 // 直接提取价格：兼容京东 price 对象 {p, op, m} 或平铺字段 {price, originalPrice}
