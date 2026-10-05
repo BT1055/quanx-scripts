@@ -68,10 +68,13 @@ if (url.includes(path2)) {
 }
 
 // 触发条件：参考脚本原匹配 graphext；扩展兼容新版京东详情页
-// item.m.jd.com/{sku}.html 与 item.jd.com/{sku}.html（URL 自带商品ID）
-if (url.includes(path1) || /item(?:\.m)?\.jd\.com\/\d+\.html/.test(url)) {
+// item.m.jd.com/{sku}.html、item.jd.com/{sku}.html（URL 自带商品ID）
+// 以及 api.m.jd.com/client.action（新版京东详情页 JSON 接口，如 basicConfig）
+if (url.includes(path1) || /item(?:\.m)?\.jd\.com\/\d+\.html/.test(url) || url.includes('/client.action')) {
     const responseBody = $response?.body;
-    main()
+    const skuId = extractSkuId(url, $request?.body || '', responseBody || '');
+    if (!skuId) { $done({}); return; }
+    main(skuId, responseBody)
         .then(res => $done(res || { body: responseBody }))
         .catch(err => {
                 const html = `<div style= "max-width: 90%;margin: 20px auto;padding: 16px;background: #ffffff;color: #d32f2f;border: 2px solid #f44336;border-radius: 12px;font-size: 16px;text-align:left;box-shadow: 0 2px 6px rgba(0,0,0,0.06);"><strong>${err.message}</strong></div>`;
@@ -83,15 +86,28 @@ if (url.includes(path1) || /item(?:\.m)?\.jd\.com\/\d+\.html/.test(url)) {
         )
 }
 
-async function main() {
+// 宽松提取 skuId：URL / 请求体 / 响应体 三来源
+function extractSkuId(urlText, reqBody, respBody) {
+    const text = (urlText || '') + '\n' + (reqBody || '') + '\n' + (respBody || '').slice(0, 8000);
+    let m;
+    m = text.match(/product\/graphext\/(\d+)\.html/); if (m) return m[1];
+    m = text.match(/item(?:\.m)?\.jd\.com\/(\d+)\.html/); if (m) return m[1];
+    m = text.match(/[?&]skuId=(\d+)/); if (m) return m[1];
+    m = text.match(/["']?skuId["']?\s*[:=]\s*["']?(\d+)/); if (m) return m[1];
+    m = text.match(/["']?wareId["']?\s*[:=]\s*["']?(\d+)/); if (m) return m[1];
+    m = text.match(/["']?sku["']?\s*[:=]\s*["']?(\d+)/); if (m) return m[1];
+    m = text.match(/"id"\s*[:=]\s*"?(\d{8,})"?/); if (m) return m[1];
+    return '';
+}
+
+async function main(skuId, responseBody) {
     intCryptoJS();
 
-    const match = url.match(/product\/graphext\/(\d+)\.html/) || url.match(/item(?:\.m)?\.jd\.com\/(\d+)\.html/);
-    if (!match) throw new Error("京东URL匹配失败");
+    if (!skuId) throw new Error("未提取到商品ID");
+    responseBody = responseBody || $response?.body || '';
 
-    const JD_Url = `https://item.jd.com/${match[1]}.html`;
+    const JD_Url = `https://item.jd.com/${skuId}.html`;
     $.manmanbuy_url = encodeURIComponent(JD_Url); // 用于后续报错点击通知自动跳转到慢慢买
-    const responseBody = $response?.body;
 
     const version = $.version || "V1";
     let link = JD_Url, stteId;
@@ -107,10 +123,22 @@ async function main() {
     const ListPriceDetail = trend?.remark?.ListPriceDetail;
     const exclude = new Set(['当前到手价', '历史最低价', '618价格', '双11价格', '30天最低价', '60天最低价', '180天最低价']);
     const list = ListPriceDetail.filter(i => exclude.has(i.Name));
-    const html = Price_HTML(list);
-    //body = $response.body.replace(/<body[^>]*>/, match => `${match}\n${html}`);
-    const body = responseBody.replace("<body>", `<body>${html}`);
-    return {body};
+
+    // 如果是 HTML 页面（item.m.jd.com 等）→ 注入比价表格
+    if (/<body/i.test(responseBody)) {
+        const html = Price_HTML(list);
+        const body = responseBody.replace("<body>", `<body>${html}`);
+        return {body};
+    }
+    // 如果是 JSON 接口（api.m.jd.com/client.action）→ 弹窗展示比价结果
+    const msg = list.map(i => {
+        let date = i.Date || '-';
+        let diff = i.Difference || '';
+        if (i.Name === '当前到手价') { date = $.time('yyyy-MM-dd'); diff = '仅供参考'; }
+        return `${i.Name}：¥${i.Price}（${date}）${diff}`;
+    }).join('\n');
+    $.msg('京东比价', `商品 ${skuId}`, msg || '暂无历史价格数据');
+    return {};
 }
 
 // 返回结果检查函数
