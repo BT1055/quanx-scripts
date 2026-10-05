@@ -73,7 +73,15 @@ if (url.includes(path2)) {
 if (url.includes(path1) || /item(?:\.m)?\.jd\.com\/\d+\.html/.test(url) || url.includes('/client.action')) {
     const responseBody = $response?.body;
     const skuId = extractSkuId(url, $request?.body || '', responseBody || '');
-    if (!skuId) { $done({}); return; }
+    if (!skuId) {
+        // 无 skuId：直接尝试从响应中提取价格字段（当前价/原价/直降）
+        const priceInfo = extractPriceDirect(responseBody || '');
+        if (priceInfo && priceInfo.current) {
+            $.msg('京东价格', '实时价格', priceInfo.text);
+        }
+        $done({});
+        return;
+    }
     main(skuId, responseBody)
         .then(res => $done(res || { body: responseBody }))
         .catch(err => {
@@ -84,6 +92,39 @@ if (url.includes(path1) || /item(?:\.m)?\.jd\.com\/\d+\.html/.test(url) || url.i
                 });
             }
         )
+}
+
+// 直接提取价格：兼容京东 price 对象 {p, op, m} 或平铺字段 {price, originalPrice}
+function extractPriceDirect(body) {
+    let obj;
+    try { obj = JSON.parse(body); } catch (e) { return null; }
+    const data = (obj && typeof obj === 'object' && obj.data) ? obj.data : (obj || {});
+    const price = (data && typeof data === 'object' && data.price) ? data.price : null;
+    let current = '', original = '';
+    if (price) {
+        if (price.p !== undefined && price.p !== '' && price.p !== '0') current = price.p;
+        if (price.op !== undefined && price.op !== '' && price.op !== '0') original = price.op;
+        if (price.price !== undefined && price.price !== '' && price.price !== '0') current = current || price.price;
+    }
+    if (!current) {
+        // 平铺字段兜底
+        const cand = ['lowPrice', 'currentPrice', 'jdPrice', 'price'];
+        for (const k of cand) {
+            if (data[k] !== undefined && data[k] !== '' && data[k] !== '0') { current = data[k]; break; }
+        }
+        const ocand = ['originalPrice', 'op', 'marketPrice'];
+        for (const k of ocand) {
+            if (data[k] !== undefined && data[k] !== '' && data[k] !== '0') { original = data[k]; break; }
+        }
+    }
+    if (!current) return null;
+    let text = '当前价：¥' + current;
+    if (original && original !== current) {
+        text += '\n原价：¥' + original;
+        const d = Number(original) - Number(current);
+        if (d > 0) text += '\n直降：¥' + d.toFixed(2);
+    }
+    return { current, original, text };
 }
 
 // 宽松提取 skuId：URL / 请求体 / 响应体 三来源
