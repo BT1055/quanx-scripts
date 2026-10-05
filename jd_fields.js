@@ -33,14 +33,13 @@ if (isJSON) {
     collectKeys(obj, all, 0);
     // 去重、排序
     all = all.filter(function (v, i) { return all.indexOf(v) === i; }).sort();
-    // 只保留看起来与价格/商品相关的 key，优先显示
+    // 优先显示与价格/商品相关的 key（短而精）
     var priceLike = all.filter(function (k) {
-      return /price|^p$|^op$|^m$|cost|sale|discount|jd|mall|ware|sku|amount|money|yuan/i.test(k);
+      return /price|^p$|^op$|^m$|cost|sale|discount|jd|mall|ware|sku|amount|money|yuan|promotion|marketing/i.test(k);
     });
-    var rest = all.filter(function (k) { return priceLike.indexOf(k) === -1; });
-    keys = priceLike.concat(rest).join(',');
-    if (keys.length > 380) keys = keys.slice(0, 380) + '…';
-    note = 'JSON有效';
+    keys = priceLike.join(',');
+    if (!keys) keys = '（未找到价格相关字段）';
+    note = 'JSON有效 | 共' + all.length + '字段';
   } catch (e) {
     note = 'JSON解析失败';
   }
