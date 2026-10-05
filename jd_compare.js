@@ -38,11 +38,12 @@ if (skuId && hasPriceKW) {
 }
 
 // === 否则：弹诊断通知（始终弹，确保规则可见）===
-$notify(
-  '京东探针' + (hasPriceKW ? ' ★含价' : ''),
-  'URL功能=' + urlFid + ' | skuId=' + (skuId || '无'),
-  '路径=' + path + ' | 含价格=' + (hasPriceKW ? '是' : '否')
-);
+// 把所有字段拼成一行，方便长按复制
+var line = 'URL功能=' + urlFid
+         + ' | skuId=' + (skuId || '无')
+         + ' | 路径=' + path
+         + ' | 含价格=' + (hasPriceKW ? '是' : '否');
+$notify('京东探针' + (hasPriceKW ? ' ★含价' : ''), line, '');
 
 $done({});
 
