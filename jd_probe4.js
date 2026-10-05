@@ -1,0 +1,38 @@
+/*
+ * jd_probe4.js —— 京东价格接口探针（始终通知版）
+ * 每次命中 client.action 都弹通知，但只显示 functionId / skuId 两个技术字段，
+ * 绝不打印响应体内容，杜绝手机号/姓名/地址等隐私出现在通知里。
+ * 价格/商品相关接口在标题带 ★ 标记。
+ * 安全声明：全部逻辑仅在本地设备运行，不收集、不上传任何数据。
+ */
+
+var url = $request.url || '';
+var reqBody = $request.body || '';
+
+function grab(text, re) {
+  var m = (text || '').match(re);
+  return m ? m[1] : '';
+}
+
+// URL 顶层 functionId（client.action 的业务名就在 URL 里）
+var urlFid = grab(url, /[?&]functionId=([a-zA-Z0-9_]+)/);
+
+// 请求体里可能再嵌套一层 functionId
+var reqFid = grab(reqBody, /functionId["']?\s*[:=]\s*["']?([a-zA-Z0-9_]+)/);
+
+// skuId 商品 ID（非隐私，仅用于定位价格接口）
+var skuId = grab(reqBody + '\n' + url, /["']?sku(?:Id|Ids|ids)["']?\s*[:=]\s*["']?\[?\s*["']?(\d+)/);
+
+var fid = urlFid || reqFid || '未知';
+
+// 标记价格/商品相关接口（★），便于识别
+var isPrice = /price|ware|sku|detail|product|business|infos/i.test(fid) || !!skuId;
+
+// 始终通知，但只显示功能名 + skuId，绝不打印响应体，保护隐私
+$notify(
+  '京东探针' + (isPrice ? ' ★' : ''),
+  'URL功能=' + (urlFid || '无'),
+  '请求体功能=' + (reqFid || '空') + (skuId ? ' | skuId=' + skuId : '')
+);
+
+$done({});
