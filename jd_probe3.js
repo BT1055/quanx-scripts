@@ -26,15 +26,14 @@ var skuId = grab(reqBody + '\n' + url, /["']?sku(?:Id|Ids|ids)["']?\s*[:=]\s*["'
 
 var fid = urlFid || reqFid || '未知';
 
-// 判断是否为价格/商品相关接口（只看接口名 + skuId，不看 body，避免泄露隐私）
-var priceRel = /price|ware|sku|detail|product|business|infos/i.test(fid) || !!skuId;
+// 标记价格/商品相关接口（★），便于识别
+var isPrice = /price|ware|sku|detail|product|business|infos/i.test(fid) || !!skuId;
 
-if (priceRel) {
-  $notify(
-    '京东价格接口',
-    'URL功能=' + (urlFid || '无'),
-    '请求体功能=' + (reqFid || '空') + (skuId ? '\nskuId=' + skuId : '')
-  );
-}
+// 始终通知，但只显示功能名 + skuId，绝不打印响应体，保护隐私
+$notify(
+  '京东探针' + (isPrice ? ' ★' : ''),
+  'URL功能=' + (urlFid || '无'),
+  '请求体功能=' + (reqFid || '空') + (skuId ? ' | skuId=' + skuId : '')
+);
 
 $done({});
