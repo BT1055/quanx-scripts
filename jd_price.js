@@ -1,11 +1,11 @@
 /*
  * jd_price.js —— 京东商品比价脚本
- * 版本: 2.0.0
+ * 版本: 2.1.0
  *
- * 变更说明（v2.0.0）：
- *   - 京东商品详情接口已从老接口 client.action?functionId=wareBusiness
- *     升级为 api.m.jd.com/api?functionId=getWareBusiness，
- *     响应结构也从「floors 页面模块」改为纯 JSON 数据。
+ * 变更说明（v2.1.0）：
+ *   - 京东商品详情新接口为 api.m.jd.com/api，functionId 可能在 URL query
+ *     也可能在 POST 请求体(body)中（老版本脚本只看 URL，导致 POST 时匹配不到）。
+ *     本版本同时检查 URL 与请求体，GET/POST 均可命中。
  *   - 原历史价格数据源（price.icharle.com）已停止服务（502），
  *     且页面内注入方式对纯数据接口不再适用。
  *   - 因此本版本改为「当前价 vs 原价」折扣比价，通过通知弹窗展示。
@@ -16,25 +16,26 @@
  *
  * 使用方法：
  *   1. 重写规则（见 jd_price.conf）：
- *      ^https?:\/\/api\.m\.jd\.com\/api\?.*functionId=getWareBusiness url script-response-body {本文件直链}
+ *      ^https?:\/\/api\.m\.jd\.com\/api(\?.*)?$ url script-response-body {本文件直链}
  *   2. MitM 主机名添加：api.m.jd.com
  *   3. 安装并在系统设置中信任 Quantumult X 根证书
  *
  * 安全声明：本脚本仅在本地设备运行，不收集、不上传任何数据。
  */
 
-const url = $request.url;
-const body = $response.body;
+var url = $request.url || '';
+var reqBody = $request.body || '';
+var body = $response.body || '';
 
-if (url.indexOf('functionId=getWareBusiness') !== -1) {
-  run();
-} else {
-  // 非目标接口，放行原响应
+// 判断是否为目标接口：functionId=getWareBusiness 可能出现在 URL 或请求体中
+if (url.indexOf('getWareBusiness') === -1 && reqBody.indexOf('getWareBusiness') === -1) {
   $done({});
+} else {
+  run();
 }
 
 function run() {
-  let obj;
+  var obj;
   try {
     obj = JSON.parse(body);
   } catch (e) {
@@ -42,9 +43,9 @@ function run() {
     return;
   }
 
-  const skuId = extractSkuId(url);
-  const info = extractPrice(obj);
-  const msg = buildMessage(info);
+  var skuId = extractSkuId(url + '\n' + reqBody);
+  var info = extractPrice(obj);
+  var msg = buildMessage(info);
 
   if (msg) {
     $notify('京东比价', skuId ? '商品 ' + skuId : '京东商品', msg);
@@ -52,19 +53,21 @@ function run() {
   $done({});
 }
 
-// 从 URL 中提取 skuId（商品 ID）
-function extractSkuId(url) {
-  const m = url.match(/[?&]skuId=(\d+)/);
+// 从 URL 或请求体中提取 skuId（兼容 query、表单、JSON 三种形式）
+function extractSkuId(text) {
+  var m = text.match(/[?&]skuId=(\d+)/);
+  if (m) return m[1];
+  m = text.match(/["']?skuId["']?\s*[:=]\s*["']?(\d+)/);
   return m ? m[1] : '';
 }
 
 // 从响应中提取当前价 / 原价（兼容多种字段路径）
 function extractPrice(obj) {
-  const data = obj && typeof obj === 'object' && obj.data ? obj.data : (obj || {});
-  const price = data && typeof data === 'object' && data.price ? data.price : {};
+  var data = obj && typeof obj === 'object' && obj.data ? obj.data : (obj || {});
+  var price = data && typeof data === 'object' && data.price ? data.price : {};
 
-  let current = '';
-  let original = '';
+  var current = '';
+  var original = '';
 
   // 当前售价：price.p 或 price.price 或 data.lowPrice
   if (price.p !== undefined && price.p !== '') current = price.p;
@@ -75,16 +78,16 @@ function extractPrice(obj) {
   if (price.op !== undefined && price.op !== '') original = price.op;
   else if (price.m !== undefined && price.m !== '') original = price.m;
 
-  return { current, original };
+  return { current: current, original: original };
 }
 
 // 生成比价通知内容
 function buildMessage(info) {
   if (!info.current) return '';
-  let msg = '当前价：¥' + info.current;
+  var msg = '当前价：¥' + info.current;
   if (info.original && info.original !== info.current) {
     msg += '\n原价：¥' + info.original;
-    const d = sub(Number(info.original), Number(info.current));
+    var d = sub(Number(info.original), Number(info.current));
     if (d > 0) msg += '\n直降：¥' + formatMoney(d);
   }
   return msg;
@@ -103,11 +106,11 @@ function sub(a, b) {
 function add(a, b) {
   a = a.toString();
   b = b.toString();
-  const aArr = a.split('.');
-  const bArr = b.split('.');
-  const d1 = aArr.length === 2 ? aArr[1] : '';
-  const d2 = bArr.length === 2 ? bArr[1] : '';
-  const maxLen = Math.max(d1.length, d2.length);
-  const m = Math.pow(10, maxLen);
+  var aArr = a.split('.');
+  var bArr = b.split('.');
+  var d1 = aArr.length === 2 ? aArr[1] : '';
+  var d2 = bArr.length === 2 ? bArr[1] : '';
+  var maxLen = Math.max(d1.length, d2.length);
+  var m = Math.pow(10, maxLen);
   return Number(((Number(a) * m + Number(b) * m) / m).toFixed(maxLen));
 }
