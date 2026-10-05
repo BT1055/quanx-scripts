@@ -21,8 +21,8 @@ var skuId = (url.match(/[?&]skuId=(\d+)/) || [])[1]
          || (body.match(/"skuId"\s*:\s*\[?\s*"?(\d+)/) || [])[1]
          || '';
 
-// 是否含价格关键词（只判断有没有，不显示原文）
-var hasPriceKW = /"p"\s*:\s*"?\d|"op"\s*:\s*"?\d|currentPrice|originalPrice|jdPrice|salePrice|priceShow|mobilePrice/i.test(body);
+// 是否含价格关键词（宽松判断：只要响应里出现 price 这个词就标记）
+var hasPriceKW = /price/i.test(body);
 
 // 路径
 var path = (url.match(/\/(client\.action|api)(?:\?|$)/) || [])[1] || '其他';
